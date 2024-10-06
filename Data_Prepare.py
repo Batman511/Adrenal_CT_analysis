@@ -94,7 +94,7 @@ def test_download_and_display_single_video(excel_file, column_names):
             print(f"Ошибка загрузки файла: {e}")
             continue
 
-def display_video(video_path: str, frame_skip=5, wait_key=200):
+def display_video(video_path, frame_skip=5, wait_key=200):
     """
     Функция для воспроизведения каждого {frame_skip} кадра видео с задержкой  {wait_key} мс.
     """
@@ -126,12 +126,101 @@ def display_video(video_path: str, frame_skip=5, wait_key=200):
     cap.release()
     cv2.destroyAllWindows()
 
+# плохо работает
+def display_video_with_max_contour(video_path, frame_skip=5, wait_key=400):
+    """
+    Функция находит максимальный контур на каждом {frame_skip} кадре,
+    проводит вертикальную линию через центр контура и выводит кадры в одном окне, чтобы убедиться, что центр найден
+    """
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Не удалось открыть видеофайл: {video_path}")
+        return
+
+    window_name = 'Display_video'
+    frame_count = 0
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if frame_count % frame_skip == 0:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # Применяем размытие
+            blurred = cv2.GaussianBlur(gray, (9, 9), 5)
+
+            # Используем Canny для выделения границ
+            edges = cv2.Canny(blurred, 50, 100)
+
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            if contours:
+                largest_contour = max(contours, key=cv2.contourArea)
+
+                # Получаем момент для нахождения центра
+                M = cv2.moments(largest_contour)
+                if M["m00"] != 0:
+                    center_x = int(M["m10"] / M["m00"])
+                    center_y = int(M["m01"] / M["m00"])
+
+                    # Рисуем контур и линию на кадре
+                    cv2.drawContours(frame, [largest_contour], -1, (0, 255, 0), 2)
+                    cv2.line(frame, (center_x, 0), (center_x, frame.shape[0]), (255, 0, 0), 2)
+
+            cv2.imshow(window_name, frame)
+
+            if cv2.waitKey(wait_key) & 0xFF == ord('q'):  # 'q' для выхода
+                break
+
+        frame_count += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+# использую пока это
+def display_video_with_center(video_path, frame_skip=5, wait_key=400):
+    """
+    Функция проводит вертикальную линию через центр каждого {frame_skip} кадра для РУЧНОГО контроля того, пациент не сместился
+    """
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Не удалось открыть видеофайл: {video_path}")
+        return
+
+    window_name = 'Display_video'
+    frame_count = 0
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if frame_count % frame_skip == 0:
+            height, width, _ = frame.shape
+
+            center_x = width // 2
+            cv2.line(frame, (center_x, 0), (center_x, height), (255, 0, 0), 2)
+            cv2.imshow(window_name, frame)
+
+            if cv2.waitKey(wait_key) & 0xFF == ord('q'):
+                break
+
+        frame_count += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     # create_folder_structure(r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture')
     # test_download_and_display_single_video(r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\База данных МСКТ надпочечников_MP4.xlsx", column_names=['Файл c нативной фазой'])
 
-    video_path = r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\data\class02\ID4_NATIVE_SE1.mp4"
-    display_video(video_path,frame_skip=5, wait_key=200)
+    video_path = r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\data\class02\ID5_NATIVE_SE1.mp4"
+    # display_video(video_path,frame_skip=5, wait_key=200)
+    # display_video_with_max_contour(video_path, frame_skip=5, wait_key=500)
+    display_video_with_center(video_path, frame_skip=5)
 
 
