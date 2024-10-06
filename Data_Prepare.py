@@ -213,6 +213,77 @@ def display_video_with_center(video_path, frame_skip=5, wait_key=400):
     cap.release()
     cv2.destroyAllWindows()
 
+# вроде норм функция для загрузки и обработки видео с уменьшением количества и размера кадров. Надо написать тестовую функцию для ее проверки
+def load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=False):
+    """
+      Функция загружает видео из указанной директории, обрабатывает их (уменьшает количество кадров, уменьшает размер) и
+      сохраняет в виде массивов.
+
+      Возвращает:
+          videos : Массив обработанных видео.
+          labels : Массив меток классов. [0 0 1]
+          label_names : Список имен меток. 'left_001'
+      """
+
+    videos = []
+    labels = []
+    formatted_label_names = []
+    label_names = os.listdir(data_dir)
+
+    for label_name in label_names:
+        label_dir = os.path.join(data_dir, label_name)
+        if 'left_adrenal' in label_name:
+            prefix = 'left'
+        elif 'right_adrenal' in label_name:
+            prefix = 'right'
+        else:
+            continue
+
+
+        class_names = os.listdir(label_dir)
+        for class_name in class_names:
+            class_path = os.path.join(label_dir, class_name)
+            for video_name in os.listdir(class_path):
+                video_path = os.path.join(class_path, video_name)
+                cap = cv2.VideoCapture(video_path)
+                frames = []
+                frame_count = 0
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+
+                    if frame_count % frame_skip == 0:
+                        # Обрезаем изображение в зависимости от надпочечника
+                        if prefix == 'left':
+                            frame = frame[:, :frame.shape[1] // 2]
+                        else:
+                            frame = frame[:, frame.shape[1] // 2:]
+
+
+                        frame = cv2.cvtColor(cv2.resize(frame, target_size), cv2.COLOR_BGR2GRAY)
+                        if add_third_dimension:
+                            frame = np.expand_dims(frame, axis=-1)  # Добавление канала для совместимости формы для некоторых моделей
+
+                        frames.append(frame)
+                    frame_count += 1
+                cap.release()
+
+                # Генерируем метку в виде массива из трех чисел
+                class_parts = class_name.split('_')[1:]
+                label = [np.uint8(int(class_parts[i])) for i in range(3)]
+
+                # Генерируем имя метки в виде left_001 или right_001
+                formatted_label_name = f"{prefix}_{''.join(class_parts)}"
+
+                videos.append(np.array(frames, dtype=np.uint8))
+                labels.append(label)
+                formatted_label_names.append(formatted_label_name)
+
+    return np.array(videos, dtype=np.uint8), np.array(labels, dtype=np.int64), formatted_label_names
+
+
+
 
 if __name__ == "__main__":
     # create_folder_structure(r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture')
@@ -220,7 +291,12 @@ if __name__ == "__main__":
 
     video_path = r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\data\class02\ID5_NATIVE_SE1.mp4"
     # display_video(video_path,frame_skip=5, wait_key=200)
-    # display_video_with_max_contour(video_path, frame_skip=5, wait_key=500)
-    display_video_with_center(video_path, frame_skip=5)
+    # display_video_with_max_contour(video_path, frame_skip=5, wait_key=500) # не работает пока
+    # display_video_with_center(video_path, frame_skip=5)
+
+    data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
+    videos, labels, label_names = load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=True)
+    print(labels, label_names)
+
 
 
