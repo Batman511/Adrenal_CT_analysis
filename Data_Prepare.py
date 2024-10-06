@@ -94,13 +94,44 @@ def test_download_and_display_single_video(excel_file, column_names):
             print(f"Ошибка загрузки файла: {e}")
             continue
 
+def display_video(video_path: str, frame_skip=5, wait_key=200):
+    """
+    Функция для воспроизведения каждого {frame_skip} кадра видео с задержкой  {wait_key} мс.
+    """
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Не удалось открыть видеофайл: {video_path}")
+        return
+
+    frame_count = 0  # Счётчик кадров
+    window_name = 'Display_video'
+
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+
+        if not ret:
+            break  # Конец видео
+
+        if frame_count % frame_skip == 0:
+            cv2.imshow(window_name, frame) # Отображение кадра в одном и том же окне
+
+            # Задержка между кадрами и Остановка при нажатии клавиши 'q'
+            if cv2.waitKey(wait_key) & 0xFF == ord('q'):
+                break
+
+        frame_count += 1
+
+    # Освобождение ресурсов
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
     # create_folder_structure(r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture')
-
     # test_download_and_display_single_video(r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\База данных МСКТ надпочечников_MP4.xlsx", column_names=['Файл c нативной фазой'])
 
-
+    video_path = r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\data\class02\ID4_NATIVE_SE1.mp4"
+    display_video(video_path,frame_skip=5, wait_key=200)
 
 
