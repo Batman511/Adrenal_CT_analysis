@@ -38,6 +38,82 @@ def create_folder_structure(base_path:str) -> None:
 
     print(f"Структура папок успешно создана в: {os.path.join(base_path, 'data')}")
 
+
+def check_images_in_excel(image_dir, excel_file, column_d='Файл c нативной фазой', column_t='Присутствует в папке "Все картинки"'):
+    """
+    Функция проверяет, присутствуют ли имена картинок из папки в Excel-файле и обновляет Excel:
+    - Если имя картинки найдено в столбце D, ставит 1 в столбце T.
+    - Картинки, не найденные в Excel, записывает в отдельный список.
+
+    Возвращает:
+        missing_images (list): Список картинок, которые не найдены в Excel-файле.
+    """
+
+    # Проверка существования пути к папке с изображениями
+    if not os.path.isdir(image_dir):
+        print(f"Ошибка: Путь к папке с изображениями '{image_dir}' не существует.")
+        return []
+
+    # Проверка существования Excel-файла
+    if not os.path.isfile(excel_file):
+        print(f"Ошибка: Excel-файл '{excel_file}' не найден.")
+        return []
+
+    # Попытка загрузить Excel-файл
+    try:
+        df = pd.read_excel(excel_file)
+    except Exception as e:
+        print(f"Ошибка при открытии Excel-файла: {e}")
+        return []
+
+    # Проверка наличия столбцов
+    if column_d not in df.columns or column_t not in df.columns:
+        print(f"Ошибка: В Excel-файле нет столбцов '{column_d}' или '{column_t}'.")
+        return []
+
+    # Преобразуем имена картинок из столбца D в список для удобства поиска
+    excel_images = df[column_d].astype(str).tolist()
+
+    # Список картинок, которые не найдены в Excel
+    missing_images = []
+
+    # Проходим по всем картинкам в папке
+    for image_name in os.listdir(image_dir):
+        # Убираем расширение файла (например, .jpg или .png) для сравнения
+        image_base_name = os.path.splitext(image_name)[0]
+
+        if image_base_name in excel_images:
+            # Если имя картинки найдено, ставим 1 в столбец T
+            df.loc[df[column_d] == image_base_name, column_t] = 1
+        else:
+            # Если не найдено, добавляем в список
+            missing_images.append(image_name)
+
+    # Попытка сохранить Excel-файл
+    try:
+        df.to_excel(excel_file, index=False)
+    except Exception as e:
+        print(f"Ошибка при сохранении Excel-файла: {e}")
+        return []
+
+    return missing_images
+
+def delete_videos(video_dir, video_list):
+    """
+    Удаляет видеофайлы из указанной папки по названиям, которые переданы в списке.
+    """
+    for video_name in video_list:
+        video_path = os.path.join(video_dir, video_name)
+        if os.path.exists(video_path):
+            try:
+                os.remove(video_path)
+                print(f"Удалено: {video_path}")
+            except OSError as e:
+                print(f"Ошибка при удалении {video_path}: {e}")
+        else:
+            print(f"Файл не найден: {video_path}")
+
+
 # С этим пока проблема. Не может загрузить файл по ссылке, с API Яндекс.Диска тоже не вышло.
 def test_download_and_display_single_video(excel_file, column_names):
     """
@@ -180,11 +256,14 @@ def display_video_with_max_contour(video_path, frame_skip=5, wait_key=400):
     cap.release()
     cv2.destroyAllWindows()
 
-# использую пока это
-def display_video_with_center(video_path, frame_skip=5, wait_key=400):
+# проверяем что надпочечники на своих местах
+def display_video_with_center(video_path, frame_skip=5, wait_key=200):
     """
-    Функция проводит вертикальную линию через центр каждого {frame_skip} кадра для РУЧНОГО контроля того, пациент не сместился
+    Функция проводит вертикальную линию через центр каждого {frame_skip} кадра для РУЧНОГО контроля того, что пациент не сместился. Выводит название файла.
     """
+
+    file_name = os.path.splitext(os.path.basename(video_path))[0]
+
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -203,15 +282,27 @@ def display_video_with_center(video_path, frame_skip=5, wait_key=400):
 
             center_x = width // 2
             cv2.line(frame, (center_x, 0), (center_x, height), (255, 0, 0), 2)
+
+            # Выводим название файла на видео
+            cv2.putText(frame, file_name, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
             cv2.imshow(window_name, frame)
 
-            if cv2.waitKey(wait_key) & 0xFF == ord('q'):
+            if cv2.waitKey(wait_key) & 0xFF == ord('q'): # выход
                 break
 
         frame_count += 1
 
     cap.release()
     cv2.destroyAllWindows()
+def manual_directory_check(image_dir):
+
+    for file_name in os.listdir(image_dir):
+        video_path = os.path.join(image_dir, file_name)
+
+        if os.path.isfile(video_path) and file_name.endswith(('.mp4', '.avi', '.mov', '.mkv')):
+            display_video_with_center(video_path)
+
 
 # вроде норм функция для загрузки и обработки видео с уменьшением количества и размера кадров. Надо написать тестовую функцию для ее проверки
 def load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=False):
@@ -295,8 +386,20 @@ if __name__ == "__main__":
     # display_video_with_center(video_path, frame_skip=5)
 
     data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
-    videos, labels, label_names = load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=True)
-    print(labels, label_names)
+    # videos, labels, label_names = load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=True)
+    # print(labels, label_names)
 
 
+    image_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Все картинки'  # Путь к папке с картинками
+    excel_file = r"C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\База данных МСКТ надпочечников_MP4.xlsx"  # Путь к Excel-файлу
+
+    # missing_images = check_images_in_excel(image_dir, excel_file)
+    # # Печать картинок, которых нет в Excel
+    # print("Картинки, не найденные в Excel:", missing_images)
+
+
+
+
+    image_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Все картинки'
+    manual_directory_check(image_dir)
 
