@@ -304,7 +304,7 @@ def manual_directory_check(image_dir):
             display_video_with_center(video_path)
 
 
-# вроде норм функция для загрузки и обработки видео с уменьшением количества и размера кадров. Надо написать тестовую функцию для ее проверки
+# вроде норм функция для загрузки и обработки видео с уменьшением количества и размера кадров.
 def load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=False):
     """
       Функция загружает видео из указанной директории, обрабатывает их (уменьшает количество кадров, уменьшает размер) и
@@ -398,8 +398,30 @@ if __name__ == "__main__":
     # print("Картинки, не найденные в Excel:", missing_images)
 
 
+    # проверял смещение
+    # image_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Все картинки'
+    # manual_directory_check(image_dir)
 
 
-    image_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Все картинки'
-    manual_directory_check(image_dir)
 
+    data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
+    videos, labels, labels_names = load_videos(data_dir)
+
+    # Проверка результата
+    print(f"Форма массива видео: {videos.shape}")
+    print(f"Метки: {labels}")
+    print(f"Имена меток: {labels_names}")
+
+
+
+    first_video = videos[1]
+    window_name = 'Video Display'
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
+    for i, frame in enumerate(first_video):
+        cv2.imshow(window_name, frame)
+
+        if cv2.waitKey(200) & 0xFF == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
