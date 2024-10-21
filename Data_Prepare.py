@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import requests
+import shutil
 import cv2
 import numpy as np
 
@@ -295,16 +296,70 @@ def display_video_with_center(video_path, frame_skip=5, wait_key=200):
 
     cap.release()
     cv2.destroyAllWindows()
-def manual_directory_check(image_dir):
+def manual_directory_check(videos_dir):
+    """
+        Функция проверяет каждое видео из {videos_dir} с использованием display_video_with_center()
+    """
 
-    for file_name in os.listdir(image_dir):
-        video_path = os.path.join(image_dir, file_name)
+    for file_name in os.listdir(videos_dir):
+        video_path = os.path.join(videos_dir, file_name)
 
         if os.path.isfile(video_path) and file_name.endswith(('.mp4', '.avi', '.mov', '.mkv')):
             display_video_with_center(video_path)
 
+# заполняем папку data
+def copy_videos_from_excel(excel_path, video_dir, data_dir):
+    """
+    Функция перемещает видео из папки video_dir в папку data, согласно Excel-файлу.
 
-# вроде норм функция для загрузки и обработки видео с уменьшением количества и размера кадров.
+    Параметры:
+        excel_path (str): Путь к Excel-файлу
+        video_dir (str): Путь к директории, в которой хранятся исходные видео.
+        data_dir (str): Путь к корневой папке, в которой будут создаваться директории для файлов.
+
+    Возвращает:
+        list: Список файлов, которые не были найдены в video_dir.
+    """
+
+    try:
+        df = pd.read_excel(excel_path)
+    except Exception as e:
+        print(f"Ошибка при чтении файла Excel: {e}")
+        return []
+
+    not_found_files = []
+
+    # Проходим по каждой строке таблицы
+    for index, row in df.iterrows():
+        file_name = row['Файл c нативной фазой'] + '.mp4'  # Имя видео
+        target_subdir = row['Путь']
+
+
+        source_path = os.path.join(video_dir, file_name)
+        target_path = os.path.join(data_dir, target_subdir)
+
+
+        if os.path.exists(source_path):
+
+            # Полный путь к новому местоположению видео
+            target_file_path = os.path.join(target_path, file_name)
+
+            # Перемещаем файл, если его еще нет в целевой папке
+            if not os.path.exists(target_file_path):
+                try:
+                    shutil.copy2(source_path, target_file_path)
+                    print(f"Видео {file_name} успешно перемещено в {target_file_path}")
+                except Exception as e:
+                    print(f"Ошибка при перемещении {file_name}: {e}")
+            else:
+                print(f"Видео {file_name} уже находится в {target_file_path}")
+        else:
+            print(f"Видео {file_name} не найдено в {video_dir}")
+            not_found_files.append(file_name)
+
+    return not_found_files
+
+# функция для загрузки и обработки видео с уменьшением количества и размера кадров.
 def load_videos(data_dir, target_size=(224, 224), frame_skip=5, add_third_dimension=False):
     """
       Функция загружает видео из указанной директории, обрабатывает их (уменьшает количество кадров, уменьшает размер) и
@@ -404,24 +459,94 @@ if __name__ == "__main__":
 
 
 
+    # data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
+    # videos, labels, labels_names = load_videos(data_dir)
+
+# """
+#     data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
+#     videos, labels, labels_names = load_videos(data_dir)
+#
+#     # Проверка результата
+#     print(f"Форма массива видео: {videos.shape}")
+#     print(f"Метки: {labels}")
+#     print(f"Имена меток: {labels_names}")
+#
+#
+#     first_video = videos[1]
+#     window_name = 'Video Display'
+#     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+#
+#     for i, frame in enumerate(first_video):
+#         cv2.imshow(window_name, frame)
+#
+#         if cv2.waitKey(200) & 0xFF == ord('q'):
+#             break
+#
+#     cv2.destroyAllWindows()
+# """
+
+
+
+
+# '''
+#     excel_path = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\База данных МСКТ надпочечников_MP4.xlsx'
+#     video_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Все картинки'
+#     data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture'
+#
+#     Вывод списка ненайденных файлов
+#     not_found_files = copy_videos_from_excel(excel_path, video_dir, data_dir)
+#     if not_found_files:
+#         print("Видео, которые не были найдены:", not_found_files)
+#     else:
+#         print("Все видео найдены и скопированы.")
+# '''
+
+
+
+#----------------Преобразование данных----------------#
+
     data_dir = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\data'
-    videos, labels, labels_names = load_videos(data_dir)
+    videos, labels, labels_names = load_videos(data_dir, target_size=(224, 224), frame_skip=2, add_third_dimension=True)
 
-    # Проверка результата
     print(f"Форма массива видео: {videos.shape}")
-    print(f"Метки: {labels}")
-    print(f"Имена меток: {labels_names}")
+    # print(f"Метки: {labels}")
+    # print(f"Имена меток: {labels_names}")
 
 
 
-    first_video = videos[1]
-    window_name = 'Video Display'
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    # Пути для сохранения файлов
+    videos_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\videos.npy'
+    labels_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\labels.npy'
+    labels_names_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\labels_names.npy'
 
-    for i, frame in enumerate(first_video):
-        cv2.imshow(window_name, frame)
+    np.save(videos_file, videos)
+    np.save(labels_file, labels)
+    np.save(labels_names_file, labels_names)
 
-        if cv2.waitKey(200) & 0xFF == ord('q'):
-            break
+    print("Массивы успешно сохранены.")
 
-    cv2.destroyAllWindows()
+
+
+#----------------Загрузка массивов данных----------------#
+
+    # videos_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\videos.npy'
+    # labels_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\labels.npy'
+    # labels_names_file = r'C:\Users\Антон\Documents\материалы ВИШ\Диплом КТ\Adrenal CT architecture\labels_names.npy'
+    #
+    # videos = np.load(videos_file)
+    # labels = np.load(labels_file)
+    # labels_names = np.load(labels_names_file)
+    #
+    # print(f"Форма массива видео: {videos.shape}")
+    #
+    # first_video = videos[0]
+    # window_name = 'Video Display'
+    # cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    #
+    # for i, frame in enumerate(first_video):
+    #     cv2.imshow(window_name, frame)
+    #
+    #     if cv2.waitKey(200) & 0xFF == ord('q'):
+    #         break
+    #
+    # cv2.destroyAllWindows()
